@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Orleans.Configuration;
 using StackExchange.Redis;
 
-namespace SiloHost.Extensions;
+namespace Common.Extensions;
 
 public static class ConfigurationExt
 {

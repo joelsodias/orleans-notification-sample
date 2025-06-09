@@ -7,6 +7,8 @@ using Orleans;
 using Orleans.Configuration;
 using Orleans.Streams;
 using Contracts;
+using Orleans.Streaming.Redis;
+using Common.Extensions;
 
 namespace Client
 {
@@ -16,14 +18,24 @@ namespace Client
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            var env = builder.Environment;
 
+            var configuration = builder.Configuration
+                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+                        .AddEnvironmentVariables()
+                        .Build();
+                
 
             // Adiciona o cliente Orleans
-            builder.Services.AddOrleansClient(clientBuilder =>
+            builder.Services.AddOrleansClient(configuration, clientBuilder =>
             {
+                var configuration = clientBuilder.Configuration;
+
                 clientBuilder
                     .UseLocalhostClustering()
-                    .AddMemoryStreams("Default")
+                    //.AddMemoryStreams("Default")
+                    .AddRedisStream("Default", configuration.GetRedisConfigurationOptions())
                     .Configure<ClusterOptions>(options =>
                     {
                         options.ClusterId = "dev";

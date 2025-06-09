@@ -8,7 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Common\Common.csproj" />
     <ProjectReference Include="..\Contracts\Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Orleans.Streaming.Redis\Orleans.Streaming.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +24,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
   </ItemGroup>
+
+
 
 
 

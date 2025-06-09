@@ -1,11 +1,14 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+
 using Orleans;
-using Orleans.Streams;
-using Orleans.Configuration;
 using Orleans.Hosting;
-using SiloHost.Extensions;
+using Orleans.Streams;
+using Orleans.Streaming.Redis;
+using Orleans.Configuration;
+
+using Common.Extensions;
 
 namespace SiloHost
 {
@@ -38,8 +41,15 @@ namespace SiloHost
                             options.ServiceId = "CompanyPerformanceApp";
                         })
                         .UseLocalhostClustering()
-                        .AddMemoryGrainStorage("PubSubStore")
-                        .AddMemoryStreams("Default")
+                        //.AddMemoryStreams("Default")
+                        .AddRedisStream("Default", configuration.GetRedisConfigurationOptions())
+                        //.AddMemoryGrainStorage("PubSubStore")
+                        .AddRedisGrainStorage(
+                            name: "PubSubStore",
+                            configureOptions =>
+                            {
+                                configureOptions.ConfigurationOptions = configuration.GetRedisConfigurationOptions();
+                            })
                         .AddRedisGrainStorage(
                             name: "redisStore",
                             configureOptions =>

@@ -1,8 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\Common\Common.csproj" />
     <ProjectReference Include="..\Grains\Grains.csproj" />
     <ProjectReference Include="..\Contracts\Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Orleans.Streaming.Redis\Orleans.Streaming.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
