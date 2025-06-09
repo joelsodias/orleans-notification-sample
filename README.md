@@ -99,7 +99,7 @@ This sequence demonstrates the full PubSub chain using Orleans Streams and Redis
 
 ## Visual Overview
 
-Below is a diagram illustrating the flow of events and data in the Orleans PubSub sample, including state storage in Redis:
+Below is a diagram illustrating the flow of events and data in the Orleans PubSub sample, including state storage in Redis and the event propagation:
 
 ```mermaid
 graph TD
@@ -108,7 +108,8 @@ graph TD
     B -->|State Updated| C[CompanyGrain]
     B -->|State Persisted| F[Redis State Storage]
     C -->|State Persisted| F
-    D -->|FactorChangedEvent| C
+    D -->|FactorChangedEvent| B
+    B -->|Factor Applied| C
     C -->|Query Result| E[API Call via Swagger UI]
 
     subgraph Orleans Silo
@@ -122,13 +123,13 @@ graph TD
 **Legend:**
 
 - **API Call via Swagger UI**: User interacts with the API endpoints using Swagger UI.
-- **AreaGrain**: Receives area updates from the API.
-- **Redis Stream**: Used for publishing/subscribing to events (PubSub).
-- **CompanyGrain**: Subscribes to the stream, reacts to events, and updates its state.
+- **AreaGrain**: Receives area updates and factor events from the API/stream, updates state, and notifies CompanyGrain.
+- **Redis Stream**: Used for publishing/subscribing to events (PubSub), including factor changes.
+- **CompanyGrain**: Receives updates from AreaGrain, reacts to events, and updates its state.
 - **Redis State Storage**: Persists grain state for reliability and recovery.
 - **Query Result**: User queries the latest result from the grain via the API.
 
-This diagram shows how API calls trigger grain updates and events, which are then processed, persisted, and can be queried back through the API.
+This diagram shows how API calls trigger grain updates and events, which are then processed, persisted, and can be queried back through the API. Factor change events are first delivered to each AreaGrain, which then update and notify the CompanyGrain.
 
 ## Project Structure
 
