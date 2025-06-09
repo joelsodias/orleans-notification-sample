@@ -97,6 +97,35 @@ Follow these steps to see Orleans Streams (PubSub) in action:
 
 This sequence demonstrates the full PubSub chain using Orleans Streams and Redis, with all interactions visible via the Swagger UI.
 
+## Visual Overview
+
+Below is a diagram illustrating the flow of events and data in the Orleans PubSub sample:
+
+```mermaid
+graph TD
+    A[API Call via Swagger UI] -->|Update Area| B[AreaGrain]
+    A -->|Publish Factor Change| D[Redis Stream]
+    B -->|State Updated| C[CompanyGrain]
+    D -->|FactorChangedEvent| C
+    C -->|Query Result| E[API Call via Swagger UI]
+
+    subgraph Orleans Silo
+        B
+        C
+    end
+    D[Redis Stream]
+```
+
+**Legend:**
+
+- **API Call via Swagger UI**: User interacts with the API endpoints using Swagger UI.
+- **AreaGrain**: Receives area updates from the API.
+- **Redis Stream**: Used for publishing/subscribing to events (PubSub).
+- **CompanyGrain**: Subscribes to the stream, reacts to events, and updates its state.
+- **Query Result**: User queries the latest result from the grain via the API.
+
+This diagram shows how API calls trigger grain updates and events, which are then processed and can be queried back through the API.
+
 ## Project Structure
 
 - `Contracts`  
