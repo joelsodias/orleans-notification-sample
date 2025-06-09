@@ -14,7 +14,6 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
 
     private StreamSubscriptionHandle<OperationUpdateEvent>? _subscription;
 
-    private string CompanyId { get; set; } = string.Empty;
 
     public CompanyGrain(ILogger<CompanyGrain> logger)
     {
@@ -23,16 +22,17 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
+        // Carregar estado persistido
+        await ReadStateAsync();
+        
         var grainKey = this.GetPrimaryKeyString();
-        CompanyId = grainKey.Replace("company:", "");
+        State.CompanyId = grainKey.Replace("company:", "");
 
         var streamProvider = this.GetStreamProvider("Default");
-        var streamId = StreamId.Create("OperationalResultUpdate", CompanyId);
+        var streamId = StreamId.Create("OperationalResultUpdate", State.CompanyId);
         var stream = streamProvider.GetStream<OperationUpdateEvent>(streamId);
         _subscription = await stream.SubscribeAsync(OnAreaUpdate);
 
-        // Carregar estado persistido
-        await ReadStateAsync();
 
         _logger.LogInformation("CompanyGrain: ACTIVATION key {Key}", grainKey);
 
@@ -54,7 +54,7 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
     {
         State.AreaResults[evt.AreaId] = evt.OperationalResult;
 
-        _logger.LogInformation("CompanyGrain: Company {CompanyId} received area {AreaId} update: {Result}", evt.CompanyId, evt.AreaId, evt.OperationalResult);
+        _logger.LogInformation("CompanyGrain: Company {State.CompanyId} received area {AreaId} update: {Result}", evt.CompanyId, evt.AreaId, evt.OperationalResult);
 
         await WriteStateAsync();
 
@@ -73,7 +73,7 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
 
         var average = sum / State.AreaResults.Count;
 
-        _logger.LogInformation("CompanyGrain: Company {CompanyId} average performance now is: {Result}", CompanyId, average);
+        _logger.LogInformation("CompanyGrain: Company {State.CompanyId} average performance now is: {Result}", State.CompanyId, average);
 
         return Task.FromResult(average);
     }
@@ -87,6 +87,6 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
 
         await WriteStateAsync();
 
-        _logger.LogInformation("CompanyGrain: Company {CompanyId} performance values cleared. Average is now: 0", CompanyId);
+        _logger.LogInformation("CompanyGrain: Company {State.CompanyId} performance values cleared. Average is now: 0", State.CompanyId);
     }
 }

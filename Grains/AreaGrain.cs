@@ -11,9 +11,6 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 {
     private readonly ILogger<AreaGrain> _logger;
 
-    private string _companyId = string.Empty;
-    private string _areaId = string.Empty;
-
     private IAsyncStream<OperationUpdateEvent>? _companyStream;
     private StreamSubscriptionHandle<FactorChangedEvent>? _factorSubscription;
 
@@ -26,19 +23,20 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
     {
         var grainKey = this.GetPrimaryKeyString();
 
+        await ReadStateAsync();
+        
         // Esperado: "company:{CompanyId}_area:{AreaId}"
         var parts = grainKey.Split("_area:");
-        _companyId = parts[0].Replace("company:", "");
-        _areaId = parts[1];
+        State.CompanyId = parts[0].Replace("company:", "");
+        State.AreaId = parts[1];
 
-        await ReadStateAsync();
 
         var streamProvider = this.GetStreamProvider("Default");
 
-        var streamId = StreamId.Create("OperationalResultUpdate", _companyId);
+        var streamId = StreamId.Create("OperationalResultUpdate", State.CompanyId);
         _companyStream = streamProvider.GetStream<OperationUpdateEvent>(streamId);
 
-        var factorStreamId = StreamId.Create("CompanyFactorUpdates", _companyId);
+        var factorStreamId = StreamId.Create("CompanyFactorUpdates", State.CompanyId);
         var factorStream = streamProvider.GetStream<FactorChangedEvent>(factorStreamId);
         _factorSubscription = await factorStream.SubscribeAsync(OnFactorChangedAsync);
 
@@ -58,7 +56,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
         var oldOperationalResult = State.CurrentOperationalResult;
         State.CurrentOperationalResult = State.AmountReceived / State.HoursWorked * State.Factor;
         await WriteStateAsync();
-        _logger.LogInformation("AreaGrain: Area {AreaId} performance changed from {Old} to {New}", _areaId, oldOperationalResult, State.CurrentOperationalResult);
+        _logger.LogInformation("AreaGrain: Area {AreaId} performance changed from {Old} to {New}", State.AreaId, oldOperationalResult, State.CurrentOperationalResult);
         if (State.HoursWorked <= 0) return 0;
         return State.CurrentOperationalResult;
     }
@@ -72,14 +70,14 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
     {
         State.Factor = evt.NewFactor;
         await WriteStateAsync();
-        _logger.LogInformation("AreaGrain: Area {AreaId} received new factor {Factor} from event", _areaId, State.Factor);
+        _logger.LogInformation("AreaGrain: Area {AreaId} received new factor {Factor} from event", State.AreaId, State.Factor);
 
         await RecalculateAndNotifyAsync();
     }
 
     public async Task UpdateFactorAsync(decimal newFactor)
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} factor manually updated from {OldFactor} to {Factor}", _areaId, State.Factor, newFactor);
+        _logger.LogInformation("AreaGrain: Area {AreaId} factor manually updated from {OldFactor} to {Factor}", State.AreaId, State.Factor, newFactor);
         State.Factor = newFactor;
         await WriteStateAsync();
         await RecalculateAndNotifyAsync();
@@ -87,7 +85,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 
     private async Task RecalculateAndNotifyAsync()
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} recalculating performance", _areaId);
+        _logger.LogInformation("AreaGrain: Area {AreaId} recalculating performance", State.AreaId);
         await CalcResultInternalAsync();
         await WriteStateAsync();
         await NotifyCompany();
@@ -96,7 +94,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
     public async Task UpdateOperationAsync(decimal hoursWorked, decimal amountReceived)
     {
         _logger.LogInformation("AreaGrain: Area {AreaId} parameters manually changed \n - Hours Worked from {FromHours} to {ToHours} \n - Amount Received: {FromAmount} to {ToAmount}",
-            _areaId,
+            State.AreaId,
             State.HoursWorked,
             hoursWorked,
             State.AmountReceived,
@@ -112,7 +110,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
     private async Task NotifyCompany()
     {
 
-        var companyGrain = GrainFactory.GetGrain<ICompanyGrain>(_companyId);
+        var companyGrain = GrainFactory.GetGrain<ICompanyGrain>(State.CompanyId);
 
         var exists = await companyGrain.ExistsAsync();
         if (!exists)
@@ -121,15 +119,15 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
         }
 
         var evt = new OperationUpdateEvent(
-            CompanyId: _companyId,
-            AreaId: _areaId,
+            CompanyId: State.CompanyId,
+            AreaId: State.AreaId,
             HoursWorked: State.HoursWorked,
             AmountReceived: State.AmountReceived,
             Factor: State.Factor,
             OperationalResult: State.CurrentOperationalResult
         );
 
-        _logger.LogInformation("AreaGrain: Notifying company {Company} about changes in area {Area} about current operational result: {Result}", _companyId, _areaId, State.CurrentOperationalResult);
+        _logger.LogInformation("AreaGrain: Notifying company {Company} about changes in area {Area} about current operational result: {Result}", State.CompanyId, State.AreaId, State.CurrentOperationalResult);
 
         await _companyStream?.OnNextAsync(evt);
     }
