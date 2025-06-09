@@ -7,16 +7,9 @@ using System.Threading.Tasks;
 
 namespace Grains;
 
-public sealed class AreaGrain : Grain, IAreaGrain
+public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 {
     private readonly ILogger<AreaGrain> _logger;
-
-    private decimal _hoursWorked;
-    private decimal _amountReceived;
-    private decimal _factor = 1m;
-    private decimal _currentOperationalResult = 0;
-
-
 
     private string _companyId = string.Empty;
     private string _areaId = string.Empty;
@@ -38,7 +31,7 @@ public sealed class AreaGrain : Grain, IAreaGrain
         _companyId = parts[0].Replace("company:", "");
         _areaId = parts[1];
 
-
+        await ReadStateAsync();
 
         var streamProvider = this.GetStreamProvider("Default");
 
@@ -60,39 +53,43 @@ public sealed class AreaGrain : Grain, IAreaGrain
             await _factorSubscription.UnsubscribeAsync();
     }
 
-    private decimal CalcResultInternal()
+    private async Task<decimal> CalcResultInternalAsync()
     {
-        var oldOperationalResult = _currentOperationalResult;
-        _currentOperationalResult = (_amountReceived / _hoursWorked) * _factor;
-        _logger.LogInformation("AreaGrain: Area {AreaId} performance changed from {Old} to {New}", _areaId, oldOperationalResult, _currentOperationalResult);
-        if (_hoursWorked <= 0) return 0;
-        return _currentOperationalResult;
+        var oldOperationalResult = State.CurrentOperationalResult;
+        State.CurrentOperationalResult = State.AmountReceived / State.HoursWorked * State.Factor;
+        await WriteStateAsync();
+        _logger.LogInformation("AreaGrain: Area {AreaId} performance changed from {Old} to {New}", _areaId, oldOperationalResult, State.CurrentOperationalResult);
+        if (State.HoursWorked <= 0) return 0;
+        return State.CurrentOperationalResult;
     }
 
     public Task<decimal> GetCurrentResultAsync()
     {
-        return Task.FromResult(_currentOperationalResult);
+        return Task.FromResult(State.CurrentOperationalResult);
     }
 
     private async Task OnFactorChangedAsync(FactorChangedEvent evt, StreamSequenceToken? token)
     {
-        _factor = evt.NewFactor;
-        _logger.LogInformation("AreaGrain: Area {AreaId} received new factor {Factor} from event", _areaId, _factor);
+        State.Factor = evt.NewFactor;
+        await WriteStateAsync();
+        _logger.LogInformation("AreaGrain: Area {AreaId} received new factor {Factor} from event", _areaId, State.Factor);
 
         await RecalculateAndNotifyAsync();
     }
 
     public async Task UpdateFactorAsync(decimal newFactor)
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} factor manually updated from {OldFactor} to {Factor}", _areaId, _factor, newFactor);
-        _factor = newFactor;
+        _logger.LogInformation("AreaGrain: Area {AreaId} factor manually updated from {OldFactor} to {Factor}", _areaId, State.Factor, newFactor);
+        State.Factor = newFactor;
+        await WriteStateAsync();
         await RecalculateAndNotifyAsync();
     }
 
     private async Task RecalculateAndNotifyAsync()
     {
         _logger.LogInformation("AreaGrain: Area {AreaId} recalculating performance", _areaId);
-        CalcResultInternal();
+        await CalcResultInternalAsync();
+        await WriteStateAsync();
         await NotifyCompany();
     }
 
@@ -100,15 +97,15 @@ public sealed class AreaGrain : Grain, IAreaGrain
     {
         _logger.LogInformation("AreaGrain: Area {AreaId} parameters manually changed \n - Hours Worked from {FromHours} to {ToHours} \n - Amount Received: {FromAmount} to {ToAmount}",
             _areaId,
-            _hoursWorked,
+            State.HoursWorked,
             hoursWorked,
-            _amountReceived,
+            State.AmountReceived,
             amountReceived
         );
 
-        _amountReceived = amountReceived;
-        _hoursWorked = hoursWorked;
-
+        State.AmountReceived = amountReceived;
+        State.HoursWorked = hoursWorked;
+        await WriteStateAsync();
         await RecalculateAndNotifyAsync();
     }
 
@@ -126,13 +123,13 @@ public sealed class AreaGrain : Grain, IAreaGrain
         var evt = new OperationUpdateEvent(
             CompanyId: _companyId,
             AreaId: _areaId,
-            HoursWorked: _hoursWorked,
-            AmountReceived: _amountReceived,
-            Factor: _factor,
-            OperationalResult: _currentOperationalResult
+            HoursWorked: State.HoursWorked,
+            AmountReceived: State.AmountReceived,
+            Factor: State.Factor,
+            OperationalResult: State.CurrentOperationalResult
         );
 
-        _logger.LogInformation("AreaGrain: Notifying company {Company} about changes in area {Area} about current operational result: {Result}", _companyId, _areaId, _currentOperationalResult);
+        _logger.LogInformation("AreaGrain: Notifying company {Company} about changes in area {Area} about current operational result: {Result}", _companyId, _areaId, State.CurrentOperationalResult);
 
         await _companyStream?.OnNextAsync(evt);
     }

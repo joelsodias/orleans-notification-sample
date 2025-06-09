@@ -8,17 +8,13 @@ using System.Threading.Tasks;
 
 namespace Grains;
 
-public sealed class CompanyGrain : Grain, ICompanyGrain
+public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
 {
     private readonly ILogger<CompanyGrain> _logger;
 
-    private readonly ConcurrentDictionary<string, decimal> _areaResults = new();
-
     private StreamSubscriptionHandle<OperationUpdateEvent>? _subscription;
 
-    private string CompanyId { get; set; }
-
-    private bool _initialized = false;
+    private string CompanyId { get; set; } = string.Empty;
 
     public CompanyGrain(ILogger<CompanyGrain> logger)
     {
@@ -35,57 +31,62 @@ public sealed class CompanyGrain : Grain, ICompanyGrain
         var stream = streamProvider.GetStream<OperationUpdateEvent>(streamId);
         _subscription = await stream.SubscribeAsync(OnAreaUpdate);
 
+        // Carregar estado persistido
+        await ReadStateAsync();
+
         _logger.LogInformation("CompanyGrain: ACTIVATION key {Key}", grainKey);
 
         await base.OnActivateAsync(cancellationToken);
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        _initialized = true;
-        return Task.CompletedTask;
+        State.Initialized = true;
+        await WriteStateAsync();
     }
 
     public Task<bool> ExistsAsync()
     {
-        return Task.FromResult(_initialized);
+        return Task.FromResult(State.Initialized);
     }
 
     private async Task OnAreaUpdate(OperationUpdateEvent evt, StreamSequenceToken? token)
     {
-        //var areaResult = evt.HoursWorked > 0 ? (evt.AmountReceived / evt.HoursWorked) : 0m;
-        var areaResult = evt.OperationalResult;
-        _areaResults[evt.AreaId] = evt.OperationalResult;
+        State.AreaResults[evt.AreaId] = evt.OperationalResult;
 
-        _logger.LogInformation("CompanyGrain: Company {CompanyId} received area {AreaId} update: {Result}", evt.CompanyId, evt.AreaId, areaResult);
+        _logger.LogInformation("CompanyGrain: Company {CompanyId} received area {AreaId} update: {Result}", evt.CompanyId, evt.AreaId, evt.OperationalResult);
 
+        await WriteStateAsync();
+
+        // Pode recalcular aqui se quiser usar o valor atualizado imediatamente
         _ = await GetAveragePerformanceAsync();
     }
 
     public Task<decimal> GetAveragePerformanceAsync()
     {
-        if (_areaResults.Count == 0)
+        if (State.AreaResults.Count == 0)
             return Task.FromResult(0m);
 
         decimal sum = 0;
-        foreach (var val in _areaResults.Values)
+        foreach (var val in State.AreaResults.Values)
             sum += val;
 
-        var average = sum / _areaResults.Count;
+        var average = sum / State.AreaResults.Count;
 
         _logger.LogInformation("CompanyGrain: Company {CompanyId} average performance now is: {Result}", CompanyId, average);
 
         return Task.FromResult(average);
     }
-    public Task ClearPerformanceAsync()
+
+    public async Task ClearPerformanceAsync()
     {
-        foreach (var key in _areaResults.Keys)
+        foreach (var key in State.AreaResults.Keys)
         {
-            _areaResults[key] = 0m;
+            State.AreaResults[key] = 0m;
         }
 
-        _logger.LogInformation("CompanyGrain: Company {CompanyId} performance values cleared. Average is now: 0", CompanyId);
+        await WriteStateAsync();
 
-        return Task.CompletedTask;
+        _logger.LogInformation("CompanyGrain: Company {CompanyId} performance values cleared. Average is now: 0", CompanyId);
     }
 }

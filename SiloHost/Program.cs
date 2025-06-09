@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Orleans;
 using Orleans.Streams;
 using Orleans.Configuration;
 using Orleans.Hosting;
-using System.Threading.Tasks;
+using SiloHost.Extensions;
 
 namespace SiloHost
 {
@@ -13,8 +14,23 @@ namespace SiloHost
         public static async Task Main(string[] args)
         {
             var host = Host.CreateDefaultBuilder(args)
-                .UseOrleans(siloBuilder =>
+                .ConfigureAppConfiguration((hostingContext, config) =>
                 {
+                    var env = hostingContext.HostingEnvironment;
+
+                    config
+                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+                        .AddEnvironmentVariables();
+                })
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddConsole();
+                })
+                .UseOrleans((context, siloBuilder) =>
+                {
+                    var configuration = context.Configuration;
+
                     siloBuilder
                         .Configure<ClusterOptions>(options =>
                         {
@@ -24,13 +40,22 @@ namespace SiloHost
                         .UseLocalhostClustering()
                         .AddMemoryGrainStorage("PubSubStore")
                         .AddMemoryStreams("Default")
-                        .ConfigureLogging(logging => logging.AddConsole());
+                        .AddRedisGrainStorage(
+                            name: "redisStore",
+                            configureOptions =>
+                            {
+                                configureOptions.ConfigurationOptions = configuration.GetRedisConfigurationOptions();
+                            })
+                        .AddRedisGrainStorageAsDefault(configureOptions =>
+                            {
+                                configureOptions.ConfigurationOptions = configuration.GetRedisConfigurationOptions();
+                            })
+
+                            ;
                 })
                 .Build();
 
             await host.StartAsync();
-
-            // Mantém o silo ativo
             await host.WaitForShutdownAsync();
         }
     }
