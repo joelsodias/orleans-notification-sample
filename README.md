@@ -44,6 +44,59 @@ This project demonstrates a simple notification system built with [Microsoft Orl
 
 5. Open your browser and navigate to `http://localhost:5000/swagger` (or the port shown in the terminal) to access the Swagger UI and interact with the API endpoints for sending and receiving notifications.
 
+## Demonstrating the PubSub Chain of Events
+
+Follow these steps to see Orleans Streams (PubSub) in action:
+
+1. **Start the Orleans Silo**
+
+    Run the SiloHost project:
+    ```bash
+    dotnet run --project SiloHost
+    ```
+    This starts the Orleans cluster and configures Redis streaming.
+
+2. **Start the Client (API Server)**
+
+    In a new terminal, run:
+    ```bash
+    dotnet run --project Client
+    ```
+    This launches the ASP.NET Core Web API, exposing endpoints for grains and streams.
+
+3. **Open Swagger UI**
+
+    Go to `http://localhost:5000/swagger` in your browser to access the API documentation and test endpoints.
+
+4. **Demonstrate the PubSub Flow**
+
+    - **a. Update an Area’s Operation**
+      - Use `POST /api/company/{companyId}/area/{areaId}/update` in Swagger.
+      - Example: `companyId=acme`, `areaId=north`, `hours=10`, `amount=1000`.
+      - This updates the AreaGrain state.
+
+    - **b. Publish a Factor Change Event**
+      - Use `POST /api/company/{companyId}/factor` in Swagger.
+      - Example: `companyId=acme`, `factor=1.2`.
+      - This publishes a `FactorChangedEvent` to the Redis stream using Orleans Streams.
+
+    - **c. Observe Grain Reaction**
+      - Grains (such as CompanyGrain) subscribed to the stream receive the event and update their state or trigger further processing.
+
+    - **d. Query the Result**
+      - Use `GET /api/company/operational/result?companyId=acme` in Swagger.
+      - This retrieves the latest computed result from the CompanyGrain.
+
+5. **Summary of the PubSub Chain**
+
+    1. API call updates grain state or publishes to stream.
+    2. Grain processes the update.
+    3. Event is published to Redis via Orleans Streams.
+    4. Subscribed grain receives the event and reacts.
+    5. API call retrieves the updated state/result from the grain.
+
+This sequence demonstrates the full PubSub chain using Orleans Streams and Redis, with all interactions visible via the Swagger UI.
+
 ## Project Structure
 
 - `Contracts`  
