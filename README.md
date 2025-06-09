@@ -10,7 +10,7 @@ This project demonstrates a simple notification system built with [Microsoft Orl
 - Orleans Silo and Client setup
 - Notification grain interface and implementation
 - Example of sending and receiving notifications
-- Console-based UI for testing
+- **Swagger/OpenAPI UI for testing the API endpoints**
 
 ## Getting Started
 
@@ -37,12 +37,12 @@ This project demonstrates a simple notification system built with [Microsoft Orl
     dotnet run --project SiloHost
     ```
 
-4. In a new terminal, run the client:
+4. In a new terminal, run the client (API server):
     ```bash
     dotnet run --project Client
     ```
 
-5. Follow the console prompts to send and receive notifications.
+5. Open your browser and navigate to `http://localhost:5000/swagger` (or the port shown in the terminal) to access the Swagger UI and interact with the API endpoints for sending and receiving notifications.
 
 ## Project Structure
 
@@ -56,7 +56,7 @@ This project demonstrates a simple notification system built with [Microsoft Orl
   Hosts the Orleans Silo, managing the lifecycle of grains and handling client requests.
 
 - `Client`  
-  Console application acting as a client to the Orleans cluster, providing a simple UI for sending notifications.
+  ASP.NET Core Web API project acting as a client to the Orleans cluster, exposing endpoints for sending notifications and querying results. The UI is provided via Swagger/OpenAPI.
 
 - `Common`  
   Shared utilities and configuration extensions used across projects.
