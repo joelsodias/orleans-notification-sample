@@ -1,3 +1,4 @@
+using Common.Constants;
 using Contracts;
 using Microsoft.Extensions.Logging;
 using Orleans;
@@ -28,8 +29,8 @@ public sealed class CompanyGrain : Grain<CompanyState>, ICompanyGrain
         var grainKey = this.GetPrimaryKeyString();
         State.CompanyId = grainKey.Replace("company:", "");
 
-        var streamProvider = this.GetStreamProvider("Default");
-        var streamId = StreamId.Create("OperationalResultUpdate", State.CompanyId);
+        var streamProvider = this.GetStreamProvider(StreamsConstants.ProviderName);
+        var streamId = StreamId.Create(StreamsConstants.OperationalResultUpdateStream, State.CompanyId);
         var stream = streamProvider.GetStream<OperationUpdateEvent>(streamId);
         _subscription = await stream.SubscribeAsync(OnAreaUpdate);
 

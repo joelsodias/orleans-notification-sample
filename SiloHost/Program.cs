@@ -9,6 +9,7 @@ using Orleans.Streaming.Redis;
 using Orleans.Configuration;
 
 using Common.Extensions;
+using Common.Constants;
 
 namespace SiloHost
 {
@@ -41,17 +42,11 @@ namespace SiloHost
                             options.ServiceId = "CompanyPerformanceApp";
                         })
                         .UseLocalhostClustering()
-                        //.AddMemoryStreams("Default")
-                        .AddRedisStream("Default", configuration.GetRedisConfigurationOptions())
-                        //.AddMemoryGrainStorage("PubSubStore")
+
+                        .AddRedisStreamServer(StreamsConstants.ProviderName, configuration.GetRedisConfigurationOptions())
+
                         .AddRedisGrainStorage(
-                            name: "PubSubStore",
-                            configureOptions =>
-                            {
-                                configureOptions.ConfigurationOptions = configuration.GetRedisConfigurationOptions();
-                            })
-                        .AddRedisGrainStorage(
-                            name: "redisStore",
+                            name: "redisStateStore",
                             configureOptions =>
                             {
                                 configureOptions.ConfigurationOptions = configuration.GetRedisConfigurationOptions();

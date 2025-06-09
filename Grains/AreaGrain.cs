@@ -1,3 +1,4 @@
+using Common.Constants;
 using Contracts;
 using Microsoft.Extensions.Logging;
 using Orleans;
@@ -25,18 +26,17 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 
         await ReadStateAsync();
         
-        // Esperado: "company:{CompanyId}_area:{AreaId}"
         var parts = grainKey.Split("_area:");
         State.CompanyId = parts[0].Replace("company:", "");
         State.AreaId = parts[1];
 
 
-        var streamProvider = this.GetStreamProvider("Default");
+        var streamProvider = this.GetStreamProvider(StreamsConstants.ProviderName);
 
-        var streamId = StreamId.Create("OperationalResultUpdate", State.CompanyId);
+        var streamId = StreamId.Create(StreamsConstants.OperationalResultUpdateStream, State.CompanyId);
         _companyStream = streamProvider.GetStream<OperationUpdateEvent>(streamId);
 
-        var factorStreamId = StreamId.Create("CompanyFactorUpdates", State.CompanyId);
+        var factorStreamId = StreamId.Create(StreamsConstants.FactorUpdateStream, State.CompanyId);
         var factorStream = streamProvider.GetStream<FactorChangedEvent>(factorStreamId);
         _factorSubscription = await factorStream.SubscribeAsync(OnFactorChangedAsync);
 
@@ -56,7 +56,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
         var oldOperationalResult = State.CurrentOperationalResult;
         State.CurrentOperationalResult = State.AmountReceived / State.HoursWorked * State.Factor;
         await WriteStateAsync();
-        _logger.LogInformation("AreaGrain: Area {AreaId} performance changed from {Old} to {New}", State.AreaId, oldOperationalResult, State.CurrentOperationalResult);
+        _logger.LogInformation("AreaGrain:  {AreaId} performance changed from {Old} to {New}", State.AreaId, oldOperationalResult, State.CurrentOperationalResult);
         if (State.HoursWorked <= 0) return 0;
         return State.CurrentOperationalResult;
     }
@@ -70,14 +70,14 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
     {
         State.Factor = evt.NewFactor;
         await WriteStateAsync();
-        _logger.LogInformation("AreaGrain: Area {AreaId} received new factor {Factor} from event", State.AreaId, State.Factor);
+        _logger.LogInformation("AreaGrain:  {AreaId} received new factor {Factor} from event", State.AreaId, State.Factor);
 
         await RecalculateAndNotifyAsync();
     }
 
     public async Task UpdateFactorAsync(decimal newFactor)
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} factor manually updated from {OldFactor} to {Factor}", State.AreaId, State.Factor, newFactor);
+        _logger.LogInformation("AreaGrain:  {AreaId} factor manually updated from {OldFactor} to {Factor}", State.AreaId, State.Factor, newFactor);
         State.Factor = newFactor;
         await WriteStateAsync();
         await RecalculateAndNotifyAsync();
@@ -85,7 +85,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 
     private async Task RecalculateAndNotifyAsync()
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} recalculating performance", State.AreaId);
+        _logger.LogInformation("AreaGrain:  {AreaId} recalculating performance", State.AreaId);
         await CalcResultInternalAsync();
         await WriteStateAsync();
         await NotifyCompany();
@@ -93,7 +93,7 @@ public sealed class AreaGrain : Grain<AreaState>, IAreaGrain
 
     public async Task UpdateOperationAsync(decimal hoursWorked, decimal amountReceived)
     {
-        _logger.LogInformation("AreaGrain: Area {AreaId} parameters manually changed \n - Hours Worked from {FromHours} to {ToHours} \n - Amount Received: {FromAmount} to {ToAmount}",
+        _logger.LogInformation("AreaGrain:  {AreaId} parameters manually changed \n - Hours Worked from {FromHours} to {ToHours} \n - Amount Received: {FromAmount} to {ToAmount}",
             State.AreaId,
             State.HoursWorked,
             hoursWorked,

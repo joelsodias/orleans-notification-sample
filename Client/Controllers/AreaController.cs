@@ -3,6 +3,7 @@ using Orleans;
 using Orleans.Streams;
 using Contracts;
 using System.Threading.Tasks;
+using Common.Constants;
 
 namespace CompanyPerformance.Api.Controllers;
 
@@ -34,9 +35,9 @@ public class AreaController : ControllerBase
         string companyId,
         [FromQuery] decimal factor)
     {
-        var streamProvider = _client.GetStreamProvider("Default");
+        var streamProvider = _client.GetStreamProvider(StreamsConstants.ProviderName);
         var factorStream = streamProvider.GetStream<FactorChangedEvent>(
-            StreamId.Create("CompanyFactorUpdates", companyId)
+            StreamId.Create(StreamsConstants.FactorUpdateStream, companyId)
         );
 
         await factorStream.OnNextAsync(new FactorChangedEvent(companyId, factor));
