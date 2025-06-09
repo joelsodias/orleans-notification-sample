@@ -2,15 +2,33 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Client",
+      "name": "Launch Client (Web API com Swagger)",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-client",
       "program": "${workspaceFolder}/Client/bin/Debug/net9.0/Client.dll",
       "args": [],
       "cwd": "${workspaceFolder}/Client",
-      "console": "integratedTerminal",
-      "stopAtEntry": false
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "launchBrowser": {
+        "enabled": true,
+        "args": "http://localhost:5000/swagger",
+        "windows": {
+          "command": "cmd.exe",
+          "args": "/C start http://localhost:5000/swagger"
+        },
+        "osx": {
+          "command": "open"
+        },
+        "linux": {
+          "command": "xdg-open"
+        }
+      },
+      "dotnetRunMessages": true,
+      "stopAtEntry": false,
+      "console": "internalConsole"
     },
     {
       "name": "Launch SiloHost",

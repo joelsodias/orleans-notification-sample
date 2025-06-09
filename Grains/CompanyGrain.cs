@@ -18,6 +18,8 @@ public sealed class CompanyGrain : Grain, ICompanyGrain
 
     private string CompanyId { get; set; }
 
+    private bool _initialized = false;
+
     public CompanyGrain(ILogger<CompanyGrain> logger)
     {
         _logger = logger;
@@ -36,6 +38,17 @@ public sealed class CompanyGrain : Grain, ICompanyGrain
         _logger.LogInformation("CompanyGrain: ACTIVATION key {Key}", grainKey);
 
         await base.OnActivateAsync(cancellationToken);
+    }
+
+    public Task InitializeAsync()
+    {
+        _initialized = true;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ExistsAsync()
+    {
+        return Task.FromResult(_initialized);
     }
 
     private async Task OnAreaUpdate(OperationUpdateEvent evt, StreamSequenceToken? token)

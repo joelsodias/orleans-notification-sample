@@ -38,6 +38,8 @@ public sealed class AreaGrain : Grain, IAreaGrain
         _companyId = parts[0].Replace("company:", "");
         _areaId = parts[1];
 
+
+
         var streamProvider = this.GetStreamProvider("Default");
 
         var streamId = StreamId.Create("OperationalResultUpdate", _companyId);
@@ -110,8 +112,17 @@ public sealed class AreaGrain : Grain, IAreaGrain
         await RecalculateAndNotifyAsync();
     }
 
-    private Task NotifyCompany()
+    private async Task NotifyCompany()
     {
+
+        var companyGrain = GrainFactory.GetGrain<ICompanyGrain>(_companyId);
+
+        var exists = await companyGrain.ExistsAsync();
+        if (!exists)
+        {
+            await companyGrain.InitializeAsync();
+        }
+
         var evt = new OperationUpdateEvent(
             CompanyId: _companyId,
             AreaId: _areaId,
@@ -122,7 +133,8 @@ public sealed class AreaGrain : Grain, IAreaGrain
         );
 
         _logger.LogInformation("AreaGrain: Notifying company {Company} about changes in area {Area} about current operational result: {Result}", _companyId, _areaId, _currentOperationalResult);
-        return _companyStream?.OnNextAsync(evt) ?? Task.CompletedTask;
+
+        await _companyStream?.OnNextAsync(evt);
     }
 
 

@@ -12,6 +12,8 @@ public interface IAreaGrain : IGrainWithStringKey
 
 public interface ICompanyGrain : IGrainWithStringKey
 {
+    Task InitializeAsync();
+    Task<bool> ExistsAsync();
     Task<decimal> GetAveragePerformanceAsync();
     Task ClearPerformanceAsync();
 
