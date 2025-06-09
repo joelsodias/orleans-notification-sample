@@ -99,13 +99,15 @@ This sequence demonstrates the full PubSub chain using Orleans Streams and Redis
 
 ## Visual Overview
 
-Below is a diagram illustrating the flow of events and data in the Orleans PubSub sample:
+Below is a diagram illustrating the flow of events and data in the Orleans PubSub sample, including state storage in Redis:
 
 ```mermaid
 graph TD
     A[API Call via Swagger UI] -->|Update Area| B[AreaGrain]
     A -->|Publish Factor Change| D[Redis Stream]
     B -->|State Updated| C[CompanyGrain]
+    B -->|State Persisted| F[Redis State Storage]
+    C -->|State Persisted| F
     D -->|FactorChangedEvent| C
     C -->|Query Result| E[API Call via Swagger UI]
 
@@ -114,6 +116,7 @@ graph TD
         C
     end
     D[Redis Stream]
+    F[Redis State Storage]
 ```
 
 **Legend:**
@@ -122,9 +125,10 @@ graph TD
 - **AreaGrain**: Receives area updates from the API.
 - **Redis Stream**: Used for publishing/subscribing to events (PubSub).
 - **CompanyGrain**: Subscribes to the stream, reacts to events, and updates its state.
+- **Redis State Storage**: Persists grain state for reliability and recovery.
 - **Query Result**: User queries the latest result from the grain via the API.
 
-This diagram shows how API calls trigger grain updates and events, which are then processed and can be queried back through the API.
+This diagram shows how API calls trigger grain updates and events, which are then processed, persisted, and can be queried back through the API.
 
 ## Project Structure
 
